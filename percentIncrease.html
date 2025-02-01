@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Percentage Calculators</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      body {
+          font-family: Arial, sans-serif;
+          text-align: center;
+          margin: 50px;
+      }
+      input, button {
+          margin: 10px;
+          padding: 10px;
+          font-size: 16px;
+      }
+      #result1, #result2 {
+          margin-top: 20px;
+          font-weight: bold;
+      }
+    </style>
+  </head>
+  <body onload="initializeStocks()">
+    
+    <h1>Percentage Calculators</h1>
+
+    <!-- First Calculator: Percentage Increase -->
+    <h2>Percentage Increase Calculator</h2>
+	    <input type="checkbox" id="getPrice" name="getPrice" value="getPrice" />
+    <label for="getPrice"> FetchPrice </label><br />
+    <br />
+	
+    <button onclick="fetchHoldings(this.value)" id="NVDA" value="NVDA">
+      NVDA
+    </button>
+    <button onclick="fetchHoldings(this.value)" id="HLAL" value="HLAL">
+      HLAL
+    </button>
+    <button onclick="fetchHoldings(this.value)" id="SPUS" value="SPUS">
+      SPUS
+    </button>
+    <button onclick="fetchHoldings(this.value)" id="NNE" value="NNE">
+      NNE
+    </button>
+	<button onclick="fetchHoldings(this.value)" id="RGTI" value="RGTI">
+      RGTI
+    </button>
+    <button onclick="fetchHoldings(this.value)" id="WMT" value="WMT">
+      WMT
+    </button>
+	
+	<button onclick="stopUpdatingStocks()" id="stop" value="stop">
+      Stop Live Fetch
+    </button>
+	
+	<button onclick="startUpdatingStocks()" id="start" value="start">
+      Start Live Fetch
+    </button>
+    <br />
+    <label for="original1">Original Value:</label>
+    <input type="number" id="original1" placeholder="Enter original value" />
+    <br />
+    <label for="newValue">New Value:</label>
+    <input type="number" id="newValue" placeholder="Enter new value" />
+    <br />
+    <input type="checkbox" id="link" name="Link" value="Link" />
+    <label for="link"> Link to profit calculator </label><br />
+    <br />
+    <button onclick="calculatePercentageIncrease()">Calculate</button>
+
+    <div id="result1"></div>
+
+    <hr />
+
+    <!-- Second Calculator: Total Amount after Percentage Increase -->
+    <h2>Total Amount after Percentage Increase</h2>
+    <label for="original2">Original Value:</label>
+    <input type="number" id="original2" placeholder="Enter original value" />
+    <br />
+    <label for="percentage">Percentage Increase (%):</label>
+    <input type="number" id="percentage" placeholder="Enter percentage" />
+    <br />
+    <button onclick="calculateTotalAmount()">Calculate</button>
+    <div id="result2"></div>
+    <div id="result3"></div>
+    <div id="result4"></div>
+
+    <script>
+	
+	const stocksHolding = [
+        { name: "SPUS", quantity: 91, boughtPrice: 43.85 },
+        { name: "HLAL", quantity: 34, boughtPrice: 54.07 },
+        { name: "NVDA", quantity: 10, boughtPrice: 120 }
+    ];
+
+    // Function to fetch today's price (replace with actual API integration)
+    async function fetchTodaysPrice(stockName) {
+        const fakePrices = { SPUS: 50, HLAL: 60, NVDA: 450 }; // Example prices
+        return new Promise(resolve => setTimeout(() => resolve(fakePrices[stockName]), 1000));
+    }
+
+    // Function to update the table
+	async function updateTable() {
+		const tableBody = document.getElementById("stockTable");
+		tableBody.innerHTML = ""; // Clear existing rows
+		let stockTotal = 0;
+		let profit = 0;
+
+		// Map stocks to promises to fetch prices
+		const rows = await Promise.all(
+			stocksHolding.map(async stock => {
+				const todaysPrice = await new Promise(resolve =>
+					tickerPrice1(stock.name, resolve)
+				);
+
+				// Handle missing price
+				const validTodaysPrice = todaysPrice !== null ? todaysPrice : "N/A";
+
+				// Calculate values
+				const initialValue = (stock.quantity * stock.boughtPrice).toFixed(2);
+				const todaysValue =
+					validTodaysPrice !== "N/A" ? (stock.quantity * validTodaysPrice).toFixed(2) : "N/A";
+				const percentChange =
+					validTodaysPrice !== "N/A"
+						? (((todaysValue - initialValue) / initialValue) * 100).toFixed(2)
+						: "N/A";
+				const totalProfit =
+					validTodaysPrice !== "N/A" ? (todaysValue - initialValue).toFixed(2) : "N/A";
+
+				// Update totals
+				stockTotal += parseFloat(initialValue);
+				profit += validTodaysPrice !== "N/A" ? parseFloat(totalProfit) : 0;
+
+				// Return row HTML
+				return `
+					<tr>
+						<td>${stock.name}</td>
+						<td>${stock.quantity}</td>
+						<td>${stock.boughtPrice.toFixed(2)}</td>
+						<td class="highlight">${validTodaysPrice !== "N/A" ? `$${validTodaysPrice.toFixed(2)}` : "N/A"}</td>
+						<td>$${initialValue}</td>
+						<td>${todaysValue !== "N/A" ? `$${todaysValue}` : "N/A"}</td>
+						<td class="${percentChange >= 0 ? 'highlight' : ''}">${percentChange !== "N/A" ? percentChange + "%" : "N/A"}</td>
+						<td>${totalProfit !== "N/A" ? `$${totalProfit}` : "N/A"}</td>
+					</tr>
+				`;
+			})
+		);
+
+		// Append all rows to the table
+		rows.forEach(row => (tableBody.innerHTML += row));
+
+		// Add total row
+		const totalRow = `
+			<tr style="font-weight: bold;">
+				<td colspan="4">Totals:</td>
+				<td colspan="1">$${stockTotal.toFixed(2)}</td>
+				<td colspan="2">Profit:</td>
+				<td colspan="1">$${profit.toFixed(2)}</td>
+			</tr>
+		`;
+		tableBody.innerHTML += totalRow;
+
+		console.log("Total Profit: " + profit);
+		console.log("Total Stock Value: " + stockTotal);
+	}
+
+		
+      const stocks = {
+        SPUS: {
+          amount: 3990.85,
+          price: 43.85,
+        },
+        HLAL: {
+          amount: 1838.38,
+          price: 54.07,
+        },
+        NVDA: {
+          amount: 1200,
+          price: 120,
+        },
+        NNE: {
+          amount: 400,
+          price: 40,
+        },
+        WMT: {
+          amount: 10000,
+          price: 98.65,
+        },
+        RGTI: {
+          amount: 10000,
+          price: 12,
+        }
+      };
+
+      function initializeStocks() {
+        for (const ticker in stocks) {
+		
+          fetchPriceOnLoad(ticker);
+        }
+      }
+	
+	let intervalID; // Variable to store interval ID
+
+// Function to start stock updates
+	function startUpdatingStocks() {
+		if (!intervalID) { // Prevent multiple intervals from running
+			intervalID = setInterval(initializeStocks, 1000);
+			console.log("Stock updates started.");
+		}
+	}
+
+	// Function to stop stock updates
+	function stopUpdatingStocks() {
+		clearInterval(intervalID);
+		console.log("Stock updates stopped.");
+		intervalID = null; // Reset interval ID so it can be restarted
+	}
+
+	
+	
+      function fetchPriceOnLoad(ticker) {
+        if (stocks[ticker]) {
+          const stock = stocks[ticker];
+          console.log(`Ticker: ${ticker}`);
+          console.log(`Amount: ${stock.amount}`);
+          console.log(`Price: $${stock.price.toFixed(2)}`);
+
+          tickerPrice1(ticker, function (currentPrice) {
+            if (currentPrice !== null) {
+              
+              document.getElementById(`${ticker}`).innerHTML =
+                `${ticker} ` + currentPrice;
+              console.log("Updated Price:", currentPrice);
+            } else {
+              document.getElementById("newValue").value =
+                "Error fetching price";
+            }
+          });
+        } else {
+          console.error("Stock not found in JSON");
+        }
+      }
+
+      function fetchHoldings(ticker) {
+        if (stocks[ticker]) {
+          const stock = stocks[ticker];
+          console.log(`Ticker: ${ticker}`);
+          console.log(`Amount: ${stock.amount}`);
+          console.log(`Price: $${stock.price.toFixed(2)}`);
+          document.getElementById("original1").value = stock.price;
+          document.getElementById("original2").value = stock.amount;
+			updateTradingViewChart(`${ticker}`);
+			
+			 if (document.getElementById("getPrice").checked) {
+					  tickerPrice1(ticker, function (currentPrice) {
+						if (currentPrice !== null) {
+						  document.getElementById("newValue").value = currentPrice;
+						  document.getElementById(`${ticker}`).innerHTML =
+							`${ticker} ` + currentPrice;
+						  console.log("Updated Price:", currentPrice);
+						} else {
+						  document.getElementById("newValue").value =
+							"Error fetching price";
+						}
+					  }); }
+					} else {
+					  console.error("Stock not found in JSON");
+					}
+      }
+function tickerPrice1(ticker, callback) {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?p=${ticker}&.tscr=fin-srch`;
+	const proxy = "https://api.allorigins.win/raw?url=";
+
+    fetch(proxy + encodeURIComponent(url))
+        .then(response => response.json())
+        .then(data => {
+            console.log(data); // Debugging: Check API response
+
+            if (data.chart && data.chart.result) {
+                const meta = data.chart.result[0].meta;
+                
+                if (meta && meta.regularMarketPrice) {
+                    callback(meta.regularMarketPrice); // Latest market price
+                } else {
+                    callback(null); // Handle missing data
+                }
+            } else {
+                callback(null); // Handle invalid response
+            }
+        })
+        .catch(error => {
+            console.error("API Request Failed:", error);
+            callback(null); // Handle API failure gracefully
+        });
+}
+ function tickerPrice(ticker, callback) {
+        const settings = {
+          async: true,
+          crossDomain: true,
+          url: `https://yahoo-finance166.p.rapidapi.com/api/stock/get-price?region=US&symbol=${ticker}`,
+          method: "GET",
+          headers: {
+            "x-rapidapi-key":
+              "0b3e749483mshca7b6351f638b9ap1a2224jsn864bd418a57e",
+            "x-rapidapi-host": "yahoo-finance166.p.rapidapi.com",
+          },
+        };
+
+        $.ajax(settings)
+          .done(function (response) {
+            console.log(response); // Debugging: Check the API response
+
+            if (response.quoteSummary && response.quoteSummary.result) {
+              const currentPrice =
+                response.quoteSummary.result[0].price.regularMarketPrice.raw;
+              callback(currentPrice); // Pass the price to the callback
+            } else {
+              callback(null); // Handle error if no valid price
+            }
+          })
+          .fail(function (jqXHR, textStatus, errorThrown) {
+            console.error("API Request Failed:", textStatus, errorThrown);
+            callback(null); // Handle API failure gracefully
+          });
+      }
+
+
+
+     
+      function calculatePercentageIncrease() {
+        const original = parseFloat(document.getElementById("original1").value);
+        const newValue = parseFloat(document.getElementById("newValue").value);
+
+        if (isNaN(original) || isNaN(newValue) || original === 0) {
+          document.getElementById("result1").textContent =
+            "Please enter valid numbers (original value must not be zero).";
+          return;
+        }
+
+        const percentageIncrease = ((newValue - original) / original) * 100;
+        document.getElementById(
+          "result1"
+        ).textContent = `Percentage Increase: ${percentageIncrease.toFixed(
+          2
+        )}%`;
+        if (document.getElementById("link").checked) {
+          document.getElementById("percentage").value =
+            percentageIncrease.toFixed(2);
+        }
+        calculateTotalAmount();
+      }
+
+      // Second Calculator: Calculate Total Amount after Percentage Increase
+      function calculateTotalAmount() {
+        const original = parseFloat(document.getElementById("original2").value);
+        const percentage = parseFloat(
+          document.getElementById("percentage").value
+        );
+
+        if (isNaN(original) || isNaN(percentage)) {
+          document.getElementById("result2").textContent =
+            "Please enter valid numbers.";
+          return;
+        }
+
+        const totalAmount = original + (original * percentage) / 100;
+        document.getElementById(
+          "result2"
+        ).textContent = `Total Amount: ${totalAmount.toFixed(2)}`;
+        const totalProfit = totalAmount - original;
+        document.getElementById(
+          "result3"
+        ).textContent = `Total Profit: ${totalProfit.toFixed(2)}`;
+        const totalProfitAfterTaxes = totalProfit - totalProfit * 0.12;
+        document.getElementById(
+          "result4"
+        ).textContent = `Total Profit Post Tax 12%: ${totalProfitAfterTaxes.toFixed(
+          2
+        )}`;
+      }
+    </script>
+	
+   <div class="tradingview-widget-container" style="height:100%;width:100%; margin:auto;">
+        <div id="tradingview_chart" class="tradingview-widget-container__widget" style="height:500px;width:1400px; margin:auto;"></div>
+        <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+                <span class="blue-text">Track all markets on TradingView</span>
+            </a>
+        </div>
+    </div>
+
+
+
+    <!-- JavaScript to Dynamically Load TradingView Chart -->
+    <script>
+        function updateTradingViewChart(symbol) {
+            // Remove old chart
+            document.getElementById("tradingview_chart").innerHTML = "";
+
+            // Create a new script element
+            const script = document.createElement("script");
+            script.type = "text/javascript";
+            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "autosize": true,
+                "symbol": symbol, // Dynamically set the stock symbol
+                "interval": "D",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "withdateranges": true,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": true,
+                "details": true,
+                "calendar": false,
+                "support_host": "https://www.tradingview.com"
+            });
+
+            // Append the script to the TradingView container
+            document.getElementById("tradingview_chart").appendChild(script);
+        }
+
+        // Load default stock (NNE) on page load
+        window.onload = function() {
+            updateTradingViewChart('NASDAQ:NNE');
+        };
+    </script>
+
+
+<script>
+    // Example stock data
+    
+
+    // Update the table on page load
+  
+</script>
+
+  </script>
+</div>
+<!-- TradingView Widget END -->
+  </body>
+</html>
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Portfolio</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 16px;
+            text-align: left;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .highlight {
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Stock Portfolio</h2>
+  
+    <button onclick="updateTable()">Get Holdings</button>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Quantity</th>
+            <th>Bought Price</th>
+            <th>Today's Price</th>
+            <th>Initial Value</th>
+            <th>Today's Value</th>
+            <th>Total Percent Change</th>
+			<th>Total Profit</th>
+        </tr>
+    </thead>
+    <tbody id="stockTable">
+        <!-- Dynamic Rows Will Be Inserted Here -->
+    </tbody>
+</table>
+
+
+
+</body>
+</html>
